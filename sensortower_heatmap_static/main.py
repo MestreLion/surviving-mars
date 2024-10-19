@@ -4,7 +4,7 @@
 # License: GPLv3 or later, at your choice. See <http://www.gnu.org/licenses/gpl>
 
 """
-Surviving Mars Tower Sensor scan boost heatmap using Matlib
+Surviving Mars Tower Sensor scan boost heatmap using Matplotlib
 """
 
 import argparse
@@ -31,6 +31,7 @@ NUM_BOOST_MAX = 100  # max cumulative scan boost
 
 # Derived constants
 MAP_SIZE = np.multiply(SECTOR_GRID, SECTOR_SIZE)  # (400, 400)
+SECTOR_MAX_BOOST = BOOST_MAX + NUM_BOOST_MAX  # 490
 
 # Parameters default values
 TOWERS_GRID_RANK = 3
@@ -92,12 +93,11 @@ def inner_grid(area_size, rank: int):
     [(100, 100), (100, 200), (100, 300),
      (200, 100), (200, 200), (200, 300),
      (300, 100), (300, 200), (300, 300)]
-
-    Return a 2-Tuple of the list of 2D coordinates and its corresponding Numpy meshgrid
     """
     axes = (np.linspace(0, s, num=rank+2)[1:-1] for s in area_size)
-    grid = np.meshgrid(*axes, indexing='ij')
-    return np.vstack(list(map(np.ravel, grid))).T, grid
+    mesh = np.meshgrid(*axes, indexing='ij')
+    return np.vstack(list(map(np.ravel, mesh))).T
+
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
@@ -140,18 +140,26 @@ def parse_args(argv=None):
     return args
 
 
-def main(argv: t.Optional[t.List[str]] = None):
-    args = parse_args(argv)
-    towers, mesh = inner_grid(MAP_SIZE, args.rank)
-    df = MapSector.map_scan_boost(towers)
-    _, ax = plt.subplots()
+def show_heatmap(data, towers, palette="rainbow", marker_size=20):
+    # Sectors Heatmap
     sns.set_theme()
-    # Good color maps (append "_r" to reverse):
-    # viridis, YlOrBr, Spectral, plasma, rainbow, jet
+    # Good colormaps (add "_r" to reverse): viridis, YlOrBr, Spectral, plasma, rainbow, jet
     # https://matplotlib.org/stable/users/explain/colors/colormaps.html
-    sns.heatmap(df, cmap="rainbow", annot=True, fmt='.0f', vmin=0, vmax=BOOST_MAX+NUM_BOOST_MAX, ax=ax, linewidths=1)
-    plot = (m/s for m, s in zip(mesh, SECTOR_SIZE))  # Scale towers (x, y) to (sx, sy)
-    plt.plot(*plot, marker='*', color="black", markersize=20, linestyle="")
+    sns.heatmap(
+        data,
+        cmap=palette,
+        annot=True,
+        fmt='.0f',
+        vmin=0,
+        vmax=SECTOR_MAX_BOOST,
+        ax=plt.subplots()[1],
+        linewidths=1
+    )
+
+    # Tower markers
+    # Scale towers from (x, y) to (sx, sy) to fit on heatmap and reshape as meshgrid
+    tower_data = tuple(np.divide(m, s) for m, s in zip(zip(*towers), SECTOR_SIZE))
+    plt.scatter(*tower_data, marker="*", s=marker_size**2, c="black")
 
     # Maximize window on display. Works on Ubuntu with TkAgg backend
     # See https://stackoverflow.com/q/12439588/624066
@@ -159,6 +167,13 @@ def main(argv: t.Optional[t.List[str]] = None):
     mng.resize(*mng.window.maxsize())
 
     plt.show()
+
+
+def main(argv: t.Optional[t.List[str]] = None):
+    args = parse_args(argv)
+    towers = inner_grid(MAP_SIZE, args.rank)
+    data = MapSector.map_scan_boost(towers)
+    show_heatmap(data, towers)
 
 
 if __name__ == "__main__":
