@@ -7,9 +7,13 @@
 Surviving Mars Tower Sensor scan boost heatmap using Matlib
 """
 
+import argparse
 import dataclasses
+import logging
 import math
-import typing
+import os
+import sys
+import typing as t
 
 import matplotlib.pylab as plt
 import numpy as np
@@ -31,9 +35,11 @@ MAP_SIZE = np.multiply(SECTOR_GRID, SECTOR_SIZE)  # tuple(map(operator.mul, SECT
 # Custom
 TOWERS_GRID_RANK = 3
 
+log = logging.getLogger(os.path.basename(os.path.splitext(__file__)[0]))
+
 @dataclasses.dataclass
 class MapSector:
-    BOOST_RANGE: typing.ClassVar = MAX_RANGE - MIN_RANGE
+    BOOST_RANGE: t.ClassVar = MAX_RANGE - MIN_RANGE
     sx: int
     sy: int
 
@@ -70,24 +76,61 @@ def inner_grid(grid_size, rank: int):
 
 def scan_boost(sx, sy, towers=None) -> int:
     # 	local best, boost = 0
-    # 	for _, tower in ipairs(city.labels.SensorTower or empty_table) do
+    # 	for tower in (city.labels.SensorTower or empty_table)
     # 		if tower.working then
     # 			boost = boost + 1
     # 			best = IsCloser2D(self, tower, best or max_range) and tower or best
-    # 		end
-    # 	end
     # 	boost = Min(boost * const.SensorTowerCumulativeScanBoost, const.SensorTowerCumulativeScanBoostMax)
     # 	if best then
     # 		boost = boost + MulDivRound(const.SensorTowerScanBoostMax,
     # 			Min(max_range - min_range, max_range - self:GetDist2D(best)),
     # 			max_range - min_range)
-    # 	end
     # 	return boost
-    # end
     return MapSector(sx, sy).scan_boost([] if towers is None else towers)
 
-def main():
-    towers, mesh = inner_grid(MAP_SIZE, TOWERS_GRID_RANK)
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "-q",
+        "--quiet",
+        dest="loglevel",
+        const=logging.WARNING,
+        default=logging.INFO,
+        action="store_const",
+        help="Suppress informative messages.",
+    )
+    group.add_argument(
+        "-v",
+        "--verbose",
+        dest="loglevel",
+        const=logging.DEBUG,
+        action="store_const",
+        help="Verbose mode, output extra info.",
+    )
+
+    parser.add_argument(
+        "-r",
+        "--rank",
+        default=TOWERS_GRID_RANK,
+        type=int,
+        help='Towers Grid "Rank" [Default: %(default)s]'
+    )
+
+    args = parser.parse_args(argv)
+    args.debug = args.loglevel == logging.DEBUG
+    logging.basicConfig(
+        level=args.loglevel,
+        format="[%(asctime)s %(funcName)-5s %(levelname)-6.6s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    logging.basicConfig(level=args.loglevel, format="%(levelname)-5.5s: %(message)s")
+    log.debug(args)
+    return args
+
+def main(argv: t.Optional[t.List[str]] = None):
+    args = parse_args(argv)
+    towers, mesh = inner_grid(MAP_SIZE, args.rank)
     # Coords for TOWERS_GRID_RANK = 3
     # [
     #     (100, 100),
@@ -113,8 +156,8 @@ def main():
     mng.resize(*mng.window.maxsize())
     plt.show()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
-        main()
+        sys.exit(main(sys.argv[1:]))
     except KeyboardInterrupt:
-        pass
+        sys.exit(1)
