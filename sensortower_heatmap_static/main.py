@@ -12,6 +12,7 @@ import dataclasses
 import logging
 import math
 import os
+import string
 import sys
 import typing as t
 
@@ -32,6 +33,7 @@ NUM_BOOST_MAX = 100  # max cumulative scan boost
 # Derived constants
 MAP_SIZE = np.multiply(SECTOR_GRID, SECTOR_SIZE)  # (400, 400)
 SECTOR_MAX_BOOST = BOOST_MAX + NUM_BOOST_MAX  # 490
+BOOST_REFERENCE = 54.12  # Average Sector boost for 1 Tower on map center
 
 # Parameters default values
 TOWERS_GRID_RANK = 3
@@ -157,7 +159,7 @@ def show_heatmap(data, towers, palette="rainbow", marker_size=20):
     sns.set_theme()
     # Good colormaps (add "_r" to reverse): viridis, YlOrBr, Spectral, plasma, rainbow, jet
     # https://matplotlib.org/stable/users/explain/colors/colormaps.html
-    sns.heatmap(
+    ax = sns.heatmap(
         data,
         cmap=palette,
         annot=True,
@@ -165,13 +167,20 @@ def show_heatmap(data, towers, palette="rainbow", marker_size=20):
         vmin=0,
         vmax=SECTOR_MAX_BOOST,
         ax=plt.subplots()[1],
-        linewidths=1
+        linewidths=1,
+        square=True,
     )
+    ax.set_title(f"Sensor Tower Scan Boost")
+    ax.xaxis.tick_top()
+    ax.set_xticklabels(string.ascii_uppercase[0:SECTOR_GRID[0]])
+    ax.yaxis.tick_left()
+    ax.set_yticklabels(str(s) for s in reversed(range(SECTOR_GRID[1])))
 
     # Tower markers
     # Scale towers from (x, y) to (sx, sy) to fit on heatmap and reshape as meshgrid
-    tower_data = tuple(np.divide(m, s) for m, s in zip(zip(*towers), SECTOR_SIZE))
-    plt.scatter(*tower_data, marker="*", s=marker_size**2, c="black")
+    if len(towers):
+        tower_data = tuple(np.divide(m, s) for m, s in zip(zip(*towers), SECTOR_SIZE))
+        plt.scatter(*tower_data, marker="*", s=marker_size**2, c="black")
 
     # Maximize window on display. Works on Ubuntu with TkAgg backend
     # See https://stackoverflow.com/q/12439588/624066
@@ -189,6 +198,17 @@ def main(argv: t.Optional[t.List[str]] = None):
 
     data = MapSector.map_scan_boost(towers)
     log.info(f"Scan Boost per Sector:\n{data}")
+
+    num, avg_sector = len(towers), np.average(data)
+    avg_tower= avg_sector / num
+    cost_benefit = avg_tower / BOOST_REFERENCE
+    log.info(
+        "Statistics:\n"
+        f"Towers: {num}\n"
+        f"Average Boost per Sector: {avg_sector:6.2f}\n"
+        f"Sector average per Tower: {avg_tower:6.2f}\n"
+        f"Cost-benefit: {cost_benefit:.1%}"
+    )
 
     if args.show:
         show_heatmap(data, towers)
