@@ -8,15 +8,11 @@ Surviving Mars Martian Patents and Martian Copyrights optimal research order
 """
 
 import argparse
-import logging
-import os
 import sys
 import typing as t
 
 START = 1
 LENGTH = 30
-
-log = logging.getLogger(os.path.basename(os.path.splitext(__file__)[0]))
 
 class Research:
     # TODO: Parametrize this for Patent and Copyright in cmd-line args or config file
@@ -53,42 +49,13 @@ class Copyright(Research):
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "-q",
-        "--quiet",
-        dest="loglevel",
-        const=logging.WARNING,
-        default=logging.INFO,
-        action="store_const",
-        help="Suppress informative messages.",
-    )
-    group.add_argument(
-        "-v",
-        "--verbose",
-        dest="loglevel",
-        const=logging.DEBUG,
-        action="store_const",
-        help="Verbose mode, output extra info.",
-    )
-
     parser.add_argument(
-        "-s", "--start", default=START, type=int, help="List start [Default: %(default)s]"
+        "--start", default=START, type=int, help="List start [Default: %(default)s]"
     )
     parser.add_argument(
-        "-l", "--length", default=LENGTH, type=int, help="List length [Default: %(default)s]"
+        "--length", default=LENGTH, type=int, help="List length [Default: %(default)s]"
     )
-
-    args = parser.parse_args(argv)
-    args.debug = args.loglevel == logging.DEBUG
-    logging.basicConfig(
-        level=args.loglevel,
-        format="[%(asctime)s %(funcName)-5s %(levelname)-6.6s] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    logging.basicConfig(level=args.loglevel, format="%(levelname)-5.5s: %(message)s")
-    log.debug(args)
-    return args
+    return parser.parse_args(argv)
 
 def main(argv: t.Optional[t.List[str]] = None):
     args = parse_args(argv)
@@ -105,10 +72,5 @@ def main(argv: t.Optional[t.List[str]] = None):
     for i, item in enumerate(sorted(items)[args.start - 1: length], args.start):
         print("{:3} {}".format(i, item))
 
-
 if __name__ == "__main__":
-    try:
-        sys.exit(main(sys.argv[1:]))
-    except Exception as err:
-        log.exception(err)
-        sys.exit(1)
+    main(sys.argv[1:])
