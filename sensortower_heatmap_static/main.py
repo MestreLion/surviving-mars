@@ -128,14 +128,26 @@ def parse_args(argv=None):
         help='Towers Grid "Rank" [Default: %(default)s]'
     )
 
+    parser.add_argument(
+        "-n",
+        "--no-show",
+        dest="show",
+        default=True,
+        action="store_false",
+        help="Do not open a window to display the heatmap",
+    )
+
     args = parser.parse_args(argv)
     args.debug = args.loglevel == logging.DEBUG
     logging.basicConfig(
         level=args.loglevel,
-        format="[%(asctime)s %(funcName)-5s %(levelname)-6.6s] %(message)s",
+        format="[%(asctime)s %(funcName)s %(levelname)-6.6s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     logging.basicConfig(level=args.loglevel, format="%(levelname)-5.5s: %(message)s")
+    # Disable debug logging for some chatty libs
+    for lib in ("matplotlib", "PIL"):
+        logging.getLogger(lib).setLevel(logging.INFO)
     log.debug(args)
     return args
 
@@ -171,9 +183,15 @@ def show_heatmap(data, towers, palette="rainbow", marker_size=20):
 
 def main(argv: t.Optional[t.List[str]] = None):
     args = parse_args(argv)
+
     towers = inner_grid(MAP_SIZE, args.rank)
+    log.info(f"Towers coordinates:\n{towers}")
+
     data = MapSector.map_scan_boost(towers)
-    show_heatmap(data, towers)
+    log.info(f"Scan Boost per Sector:\n{data}")
+
+    if args.show:
+        show_heatmap(data, towers)
 
 
 if __name__ == "__main__":
