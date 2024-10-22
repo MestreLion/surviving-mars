@@ -40,6 +40,43 @@ TOWERS_GRID_RANK = 3
 
 log = logging.getLogger(__name__.replace("__", ""))
 
+
+@dataclasses.dataclass
+class Statistics:
+    num: int
+    avg: float
+    cost: float
+
+    def __init__(self, data, towers, global_boost:bool=True):
+        self.num, self.avg, self.cost = self.statistics(data, towers, global_boost)
+
+    @staticmethod
+    def statistics(data, towers, global_boost:bool=True):
+        num, avg = len(towers), np.average(data)
+        if num:
+            avg_tower = avg / num
+            cost = (COST_REFERENCE + (NUM_BOOST if global_boost else 0)) / avg_tower
+        else:
+            avg_tower = cost = 0
+        log.info(f"Towers coordinates:\n{towers}")
+        log.info(f"Scan Boost per Sector:\n{data}")
+        log.info(
+            "Statistics:\n"
+            f"Towers: {num}\n"
+            f"Average Boost per Sector: {avg:6.2f}\n"
+            f"Sector average per Tower: {avg_tower:6.2f}\n"
+            f"Normalized cost: {cost:.1%}"
+        )
+        return num, avg, cost
+
+    def __str__(self):
+        return (
+            f"{self.num} Towers, "
+            f"{self.avg:6.2f} mean boost, "
+            f"normalized cost {self.cost:.1%}"
+        )
+
+
 @dataclasses.dataclass
 class MapSector:
     BOOST_RANGE: t.ClassVar = MAX_RANGE - MIN_RANGE
@@ -118,15 +155,14 @@ def parse_args(argv=None):
     return parser.parse_args(argv)
 
 
-
-def heatmap(data, towers, title="", palette="viridis", tower_size=20, tower_color="red"):
+def draw_heatmap(data, stats=None, palette:str="viridis", ax:plt.Axes=None) -> plt.Axes:
     # Good colormaps ("_r" means reversed):
     # turbo, rainbow, plasma, viridis, gnuplot2, YlOrBr_r, Spectral_r
     # https://matplotlib.org/stable/users/explain/colors/colormaps.html
 
     # Sectors Heatmap
     sns.set_theme()
-    ax = sns.heatmap(
+    ax_heatmap = sns.heatmap(
         data,
         cmap=palette,
         annot=True,
@@ -137,8 +173,10 @@ def heatmap(data, towers, title="", palette="viridis", tower_size=20, tower_colo
         square=True,
         xticklabels=string.ascii_uppercase[0:SECTOR_GRID[0]],
         mask=(data == 0),
+        ax=ax,
     )
-
+    if ax is None:
+        ax = ax_heatmap
     def format_coord(sx, sy):
         x, y = np.multiply((sx, sy), SECTOR_SIZE)
         x_label = ax.get_xticklabels()[int(sx)].get_text()
@@ -149,46 +187,36 @@ def heatmap(data, towers, title="", palette="viridis", tower_size=20, tower_colo
     ax.invert_yaxis()
     ax.xaxis.tick_bottom()
     ax.yaxis.tick_right()
+    if stats is not None:
+        ax.set_title(stats)
+    return ax
 
-    # Tower markers
+
+def draw_towers(towers, tower_size=20, tower_color="red", ax:plt.Axes=None):
     # Scale towers from (x, y) to (sx, sy) to fit on heatmap and reshape as meshgrid
-    if len(towers):
-        tower_data = tuple(np.divide(m, s) for m, s in zip(zip(*towers), SECTOR_SIZE))
-        plt.scatter(*tower_data, marker="*", s=tower_size**2, c=tower_color)
+    tower_data = [*zip(*np.divide(towers, SECTOR_SIZE))] if len(towers) else ([], [])
+    log.debug(f"Tower data for scatter plot:\n%s", tower_data)
+    if ax is None:
+        ax = plt
+    return ax.scatter(
+        *tower_data, marker="*", s=tower_size**2, c=tower_color, picker=True
+    )
 
-    if title:
-        plt.title(title)
 
 def main(argv: t.Optional[t.List[str]] = None):
     args = parse_args(argv)
 
     towers = inner_grid(MAP_SIZE, args.rank)
     data = MapSector.map_scan_boost(towers, args.global_boost)
+    stats = Statistics(data, towers, args.global_boost)
 
-    # Statistics
-    num, avg = len(towers), np.average(data)
-    if num:
-        avg_tower = avg / num
-        cost = (COST_REFERENCE + (NUM_BOOST if args.global_boost else 0)) / avg_tower
-    else:
-        avg_tower = cost = 0
-    log.info(f"Towers coordinates:\n{towers}")
-    log.info(f"Scan Boost per Sector:\n{data}")
-    log.info(
-        "Statistics:\n"
-        f"Towers: {num}\n"
-        f"Average Boost per Sector: {avg:6.2f}\n"
-        f"Sector average per Tower: {avg_tower:6.2f}\n"
-        f"Normalized cost: {cost:.1%}"
-    )
+    if not args.show:
+        return
 
-    if args.show:
-        heatmap(
-            data,
-            towers,
-            title=f"{num} Towers, {avg:6.2f} mean boost, normalized cost {cost:.1%}",
-        )
-        u.show_window("Surviving Mars' Sensor Towers scan boost")
+    heatmap = draw_heatmap(data, stats)
+    _towers = draw_towers(towers, ax=heatmap)
+
+    u.show_window("Surviving Mars' Sensor Towers scan boost")
 
 
 if __name__ == "__main__":
