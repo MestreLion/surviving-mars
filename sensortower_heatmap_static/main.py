@@ -7,11 +7,9 @@
 Surviving Mars Sensor Towers scan boost heatmap using Matplotlib
 """
 
-import argparse
 import dataclasses
 import logging
 import math
-import os
 import string
 import sys
 import typing as t
@@ -19,6 +17,8 @@ import typing as t
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+
+import util as u
 
 # Constants from game data
 # https://github.com/surviving-mars/SurvivingMars/blob/master/Lua/_GameConst.lua#L102
@@ -38,8 +38,7 @@ COST_REFERENCE = 44.12  # Average Sector boost for 1 Tower on map center
 # Parameters default values
 TOWERS_GRID_RANK = 3
 
-log = logging.getLogger(os.path.basename(os.path.splitext(__file__)[0]))
-
+log = logging.getLogger(__name__.replace("__", ""))
 
 @dataclasses.dataclass
 class MapSector:
@@ -59,11 +58,11 @@ class MapSector:
         """Scan boost for this Sector given the towers placement"""
         # https://github.com/surviving-mars/SurvivingMars/blob/master/Lua/Exploration.lua#L284
         # function MapSector:GetTowerBoost(city)
-        boost = clamp(len(towers) * NUM_BOOST, NUM_BOOST_MAX) if global_boost else 0
+        boost = u.clamp(len(towers) * NUM_BOOST, NUM_BOOST_MAX) if global_boost else 0
         best = min(self.distance(tower) for tower in towers) if len(towers) else MAX_RANGE
         if best < MAX_RANGE:
-            boost += scale(
-                BOOST_MAX,  clamp(MAX_RANGE - best, self.BOOST_RANGE), self.BOOST_RANGE
+            boost += u.scale(
+                BOOST_MAX, u.clamp(MAX_RANGE - best, self.BOOST_RANGE), self.BOOST_RANGE
             )
         return boost
 
@@ -73,19 +72,6 @@ class MapSector:
         def sector_scan_boost(sx, sy):
             return cls(sx, sy).scan_boost(towers, global_boost)
         return np.fromfunction(np.vectorize(sector_scan_boost, otypes=[int]), SECTOR_GRID)
-
-
-def scale(value, numerator, denominator) -> int:
-    """Helper function mimicking Surviving Mars' MulDivRound()"""
-    return round(value * numerator / denominator)
-
-
-def clamp(value, upper=None, lower=None):
-    """Helper function to replace min()/max() usage as upper/lower bounds of a value"""
-    v = value
-    if upper is not None: v = min(value, upper)
-    if lower is not None: v = max(value, lower)
-    return v
 
 
 def inner_grid(area_size, rank: int):
@@ -103,27 +89,9 @@ def inner_grid(area_size, rank: int):
     return np.vstack(list(map(np.ravel, mesh))).T
 
 
-def parse_args(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "-q",
-        "--quiet",
-        dest="loglevel",
-        const=logging.WARNING,
-        default=logging.INFO,
-        action="store_const",
-        help="Suppress informative messages.",
-    )
-    group.add_argument(
-        "-v",
-        "--verbose",
-        dest="loglevel",
-        const=logging.DEBUG,
-        action="store_const",
-        help="Verbose mode, output extra info.",
-    )
 
+def parse_args(argv=None):
+    parser = u.ArgumentParser(description=__doc__)
     parser.add_argument(
         "-r",
         "--rank",
@@ -131,7 +99,6 @@ def parse_args(argv=None):
         type=int,
         help='Towers Grid "Rank" [Default: %(default)s]'
     )
-
     parser.add_argument(
         "-N",
         "--no-show",
@@ -140,7 +107,6 @@ def parse_args(argv=None):
         action="store_false",
         help="Do not open a window to display the heatmap",
     )
-
     parser.add_argument(
         "-G",
         "--no-global-boost",
@@ -149,19 +115,8 @@ def parse_args(argv=None):
         action="store_false",
         help="Do not consider the map-wide boost from the global number of towers",
     )
+    return parser.parse_args(argv)
 
-    args = parser.parse_args(argv)
-    args.debug = args.loglevel == logging.DEBUG
-    logging.basicConfig(
-        level=args.loglevel,
-        format="[%(asctime)s %(funcName)s %(levelname)-5.5s] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    # Disable debug logging for some chatty libs
-    for lib in ("matplotlib", "PIL"):
-        logging.getLogger(lib).setLevel(logging.INFO)
-    log.debug(args)
-    return args
 
 
 def heatmap(data, towers, title="", palette="viridis", tower_size=20, tower_color="red"):
@@ -201,24 +156,8 @@ def heatmap(data, towers, title="", palette="viridis", tower_size=20, tower_colo
         tower_data = tuple(np.divide(m, s) for m, s in zip(zip(*towers), SECTOR_SIZE))
         plt.scatter(*tower_data, marker="*", s=tower_size**2, c=tower_color)
 
-    # Maximize window on display. Works on Ubuntu with GTK3Agg/TkAgg backend
-    # See https://stackoverflow.com/q/12439588/624066
-    mng = plt.get_current_fig_manager()
-    backend = plt.get_backend()
-    log.debug("Matplotlib backend: %s", backend)
-    if backend == "GTK3Agg":
-        rect = mng.window.get_screen().get_display().get_primary_monitor().get_workarea()
-        size = rect.width, rect.height
-    else:  # assume TkAgg. Who cares about Windows?
-        size = mng.window.maxsize()
-    mng.resize(*((min(*size) - 0,) * 2))
-
-    plt.suptitle("Surviving Mars' Sensor Towers scan boost", size="x-large", weight="bold")
     if title:
         plt.title(title)
-    plt.tight_layout()
-    plt.show()
-
 
 def main(argv: t.Optional[t.List[str]] = None):
     args = parse_args(argv)
@@ -249,6 +188,7 @@ def main(argv: t.Optional[t.List[str]] = None):
             towers,
             title=f"{num} Towers, {avg:6.2f} mean boost, normalized cost {cost:.1%}",
         )
+        u.show_window("Surviving Mars' Sensor Towers scan boost")
 
 
 if __name__ == "__main__":
