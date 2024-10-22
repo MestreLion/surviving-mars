@@ -182,8 +182,15 @@ def heatmap(data, towers, title="", palette="viridis", tower_size=20, tower_colo
         square=True,
         xticklabels=string.ascii_uppercase[0:SECTOR_GRID[0]],
         mask=(data == 0),
-        mouseover=True,
     )
+
+    def format_coord(sx, sy):
+        x, y = np.multiply((sx, sy), SECTOR_SIZE)
+        x_label = ax.get_xticklabels()[int(sx)].get_text()
+        y_label = ax.get_yticklabels()[int(sy)].get_text()  # str(int(sy))
+        z = data[int(sx), int(sy)]
+        return f"Sector {x_label}{y_label} (X={x:3.0f}, Y={y:3.0f}) [Scan boost = {z}]"
+    ax.format_coord = format_coord
     ax.invert_yaxis()
     ax.xaxis.tick_bottom()
     ax.yaxis.tick_right()
@@ -194,14 +201,22 @@ def heatmap(data, towers, title="", palette="viridis", tower_size=20, tower_colo
         tower_data = tuple(np.divide(m, s) for m, s in zip(zip(*towers), SECTOR_SIZE))
         plt.scatter(*tower_data, marker="*", s=tower_size**2, c=tower_color)
 
-    # Maximize window on display. Works on Ubuntu with TkAgg backend
+    # Maximize window on display. Works on Ubuntu with GTK3Agg/TkAgg backend
     # See https://stackoverflow.com/q/12439588/624066
     mng = plt.get_current_fig_manager()
-    mng.resize(*mng.window.maxsize())
+    backend = plt.get_backend()
+    log.debug("Matplotlib backend: %s", backend)
+    if backend == "GTK3Agg":
+        rect = mng.window.get_screen().get_display().get_primary_monitor().get_workarea()
+        size = rect.width, rect.height
+    else:  # assume TkAgg. Who cares about Windows?
+        size = mng.window.maxsize()
+    mng.resize(*((min(*size) - 0,) * 2))
 
     plt.suptitle("Surviving Mars' Sensor Towers scan boost", size="x-large", weight="bold")
     if title:
         plt.title(title)
+    plt.tight_layout()
     plt.show()
 
 
@@ -213,8 +228,11 @@ def main(argv: t.Optional[t.List[str]] = None):
 
     # Statistics
     num, avg = len(towers), np.average(data)
-    avg_tower = avg / num
-    cost = (COST_REFERENCE + (NUM_BOOST if args.global_boost else 0)) / avg_tower
+    if num:
+        avg_tower = avg / num
+        cost = (COST_REFERENCE + (NUM_BOOST if args.global_boost else 0)) / avg_tower
+    else:
+        avg_tower = cost = 0
     log.info(f"Towers coordinates:\n{towers}")
     log.info(f"Scan Boost per Sector:\n{data}")
     log.info(
