@@ -36,10 +36,11 @@ SECTOR_MAX_BOOST = BOOST_MAX + NUM_BOOST_MAX  # 490
 COST_REFERENCE = 44.12  # Average Sector boost for 1 Tower on map center
 
 # Parameters default values
+TOWERS_GRID_LAYOUT = "inner"
 TOWERS_GRID_SIDE = 3
 
 log = logging.getLogger(__name__.replace("__", ""))
-
+tower_generator = u.FunctionCollectionDecorator(remove_suffix="_grid")
 
 @dataclasses.dataclass
 class Statistics:
@@ -111,6 +112,7 @@ class MapSector:
         return np.fromfunction(np.vectorize(sector_scan_boost, otypes=[int]), SECTOR_GRID)
 
 
+@tower_generator(side="grid_side")
 def inner_grid(side: int, area_size=MAP_SIZE):
     """
     Coordinates of a side x side grid of points evenly spaced on an outer area
@@ -129,6 +131,14 @@ def inner_grid(side: int, area_size=MAP_SIZE):
 
 def parse_args(argv=None):
     parser = u.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "-l",
+        "--towers-layout",
+        dest="function",
+        default=TOWERS_GRID_LAYOUT,
+        choices=(tower_generator.functions.keys()),
+        help="Method to generate towers [Default: %(default)s]"
+    )
     parser.add_argument(
         "-s",
         "--grid-side",
@@ -152,7 +162,16 @@ def parse_args(argv=None):
         action="store_false",
         help="Do not consider the map-wide boost from the global number of towers",
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv, log_args=False)
+
+    # Post-process tower generator function and args
+    function = tower_generator.functions[args.function]
+    args.function = function.func
+    args.function_args = {k: getattr(args, k) for k in function.params}
+    args.function_args.update({k: getattr(args, v) for k, v in function.params_map.items()})
+
+    log.debug(args)
+    return args
 
 
 def draw_heatmap(data, stats=None, palette:str="viridis", ax:plt.Axes=None) -> plt.Axes:
@@ -206,7 +225,7 @@ def draw_towers(towers, tower_size=20, tower_color="red", ax:plt.Axes=None):
 def main(argv: t.Optional[t.List[str]] = None):
     args = parse_args(argv)
 
-    towers = inner_grid(args.side)
+    towers = args.function(**args.function_args)
     log.info(f"Towers coordinates:\n{towers}")
     data = MapSector.map_scan_boost(towers, args.global_boost)
     log.info(f"Scan Boost per Sector:\n{data}")
