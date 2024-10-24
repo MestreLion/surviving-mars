@@ -110,7 +110,7 @@ class MapSector:
         """Scan boost for all sectors in given the towers placement"""
         def sector_scan_boost(sx, sy):
             return cls(sx, sy).scan_boost(towers, global_boost)
-        return np.fromfunction(np.vectorize(sector_scan_boost, otypes=[int]), SECTOR_GRID)
+        return np.fromfunction(np.vectorize(sector_scan_boost, otypes=[int]), SECTOR_GRID).T
 
 
 @tower_generator(side="grid_side")
