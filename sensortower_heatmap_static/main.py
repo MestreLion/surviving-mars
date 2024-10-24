@@ -36,8 +36,9 @@ SECTOR_MAX_BOOST = BOOST_MAX + NUM_BOOST_MAX  # 490
 COST_REFERENCE = 44.12  # Average Sector boost for 1 Tower on map center
 
 # Parameters default values
-TOWERS_GRID_LAYOUT = "inner"
+TOWERS_GRID_LAYOUT = "margin"
 TOWERS_GRID_SIDE = 3
+TOWERS_GRID_MARGIN = (2, 2)
 
 log = logging.getLogger(__name__.replace("__", ""))
 tower_generator = u.FunctionCollectionDecorator(remove_suffix="_grid")
@@ -128,6 +129,21 @@ def inner_grid(side: int, area_size=MAP_SIZE):
     return np.vstack(list(map(np.ravel, mesh))).T
 
 
+@tower_generator(side="grid_side", margin="grid_margin")
+def margin_grid(side: int, margin=SECTOR_SIZE, area_size=MAP_SIZE):
+    """
+    Coordinates of a side x side grid of evenly-spaced points inside an area
+
+    The grid is spaced away from the area borders by a margin, hence "margin" grid
+    Coordinates of a side 3 grid over a (400, 400) area and a (40, 40) margin:
+    [( 40,  40), ( 40, 200), ( 40, 360),
+     (200,  40), (200, 200), (200, 360),
+     (360,  40), (360, 200), (360, 360)]
+    """
+    axes = np.linspace(margin, np.subtract(area_size, margin), num=side)
+    mesh = np.meshgrid(*zip(*axes), indexing='ij')
+    return np.vstack(list(map(np.ravel, mesh))).T
+
 
 def parse_args(argv=None):
     parser = u.ArgumentParser(description=__doc__)
@@ -147,6 +163,15 @@ def parse_args(argv=None):
         help='Towers grid side [Default: %(default)s]'
     )
     parser.add_argument(
+        "-m",
+        "--grid-margin",
+        default=TOWERS_GRID_MARGIN,
+        type=float,
+        nargs="+",
+        metavar=("SX", "SY"),
+        help='Towers grid margins, in Sectors [Default: %(default)s]'
+    )
+    parser.add_argument(
         "-N",
         "--no-show",
         dest="show",
@@ -163,6 +188,14 @@ def parse_args(argv=None):
         help="Do not consider the map-wide boost from the global number of towers",
     )
     args = parser.parse_args(argv, log_args=False)
+
+    # Post-process grid margin
+    if len(args.grid_margin) == 1:  # make SY=SX if only SX
+        args.grid_margin = args.grid_margin * 2
+    elif len(args.grid_margin) > 2: # emulate nargs="{1,2}"
+        parser.error("expected at most two arguments", "-m")
+    # Scale from Sector coordinates (sx, sy) to Map coordinates (x, y)
+    args.grid_margin = [m * s for m, s in zip(args.grid_margin, SECTOR_SIZE)]
 
     # Post-process tower generator function and args
     function = tower_generator.functions[args.function]

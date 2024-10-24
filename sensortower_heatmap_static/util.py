@@ -203,3 +203,11 @@ class ArgumentParser(argparse.ArgumentParser):
             if log_args:
                 log.debug(arguments)
         return arguments
+
+    def error(self, message, argument:str=""):
+        if not argument:
+            super().error(message)
+        for action in self._actions:
+            if argument in action.option_strings:
+                super().error(str(argparse.ArgumentError(action, message)))
+        raise AssertionError(f"No such command line option: {argument}")
