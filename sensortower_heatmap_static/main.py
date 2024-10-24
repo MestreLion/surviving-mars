@@ -36,7 +36,7 @@ SECTOR_MAX_BOOST = BOOST_MAX + NUM_BOOST_MAX  # 490
 COST_REFERENCE = 44.12  # Average Sector boost for 1 Tower on map center
 
 # Parameters default values
-TOWERS_GRID_RANK = 3
+TOWERS_GRID_SIDE = 3
 
 log = logging.getLogger(__name__.replace("__", ""))
 
@@ -111,17 +111,17 @@ class MapSector:
         return np.fromfunction(np.vectorize(sector_scan_boost, otypes=[int]), SECTOR_GRID)
 
 
-def inner_grid(area_size, rank: int):
+def inner_grid(side: int, area_size=MAP_SIZE):
     """
-    Coordinates of a rank x rank grid of points evenly spaced on an outer area
+    Coordinates of a side x side grid of points evenly spaced on an outer area
 
     The grid is also equally spaced away from the area borders, hence "inner" grid
-    Coordinates of a rank 3 grid (9 points) over a (400, 400) area are:
+    Coordinates of a side 3 grid (9 points) over a (400, 400) area are:
     [(100, 100), (100, 200), (100, 300),
      (200, 100), (200, 200), (200, 300),
      (300, 100), (300, 200), (300, 300)]
     """
-    axes = (np.linspace(0, s, num=rank+2)[1:-1] for s in area_size)
+    axes = (np.linspace(0, s, num=int(side)+2)[1:-1] for s in area_size)
     mesh = np.meshgrid(*axes, indexing='ij')
     return np.vstack(list(map(np.ravel, mesh))).T
 
@@ -130,11 +130,11 @@ def inner_grid(area_size, rank: int):
 def parse_args(argv=None):
     parser = u.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "-r",
-        "--rank",
-        default=TOWERS_GRID_RANK,
+        "-s",
+        "--grid-side",
+        default=TOWERS_GRID_SIDE,
         type=int,
-        help='Towers Grid "Rank" [Default: %(default)s]'
+        help='Towers grid side [Default: %(default)s]'
     )
     parser.add_argument(
         "-N",
@@ -206,7 +206,7 @@ def draw_towers(towers, tower_size=20, tower_color="red", ax:plt.Axes=None):
 def main(argv: t.Optional[t.List[str]] = None):
     args = parse_args(argv)
 
-    towers = inner_grid(MAP_SIZE, args.rank)
+    towers = inner_grid(args.side)
     log.info(f"Towers coordinates:\n{towers}")
     data = MapSector.map_scan_boost(towers, args.global_boost)
     log.info(f"Scan Boost per Sector:\n{data}")
