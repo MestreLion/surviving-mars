@@ -58,8 +58,6 @@ class Statistics:
             cost = (COST_REFERENCE + (NUM_BOOST if global_boost else 0)) / avg_tower
         else:
             avg_tower = cost = 0
-        log.info(f"Towers coordinates:\n{towers}")
-        log.info(f"Scan Boost per Sector:\n{data}")
         log.info(
             "Statistics:\n"
             f"Towers: {num}\n"
@@ -85,6 +83,7 @@ class MapSector:
 
     @property
     def center(self):
+        """Sector center in map (x, y) coordinates"""
         return (self.sx * SECTOR_SIZE[0] + SECTOR_SIZE[0] / 2,
                 self.sy * SECTOR_SIZE[1] + SECTOR_SIZE[1] / 2)
 
@@ -101,6 +100,7 @@ class MapSector:
             boost += u.scale(
                 BOOST_MAX, u.clamp(MAX_RANGE - best, self.BOOST_RANGE), self.BOOST_RANGE
             )
+        log.debug("Sector boost (%s, %s) = %s", self.sx, self.sy, boost)
         return boost
 
     @classmethod
@@ -207,7 +207,9 @@ def main(argv: t.Optional[t.List[str]] = None):
     args = parse_args(argv)
 
     towers = inner_grid(MAP_SIZE, args.rank)
+    log.info(f"Towers coordinates:\n{towers}")
     data = MapSector.map_scan_boost(towers, args.global_boost)
+    log.info(f"Scan Boost per Sector:\n{data}")
     stats = Statistics(data, towers, args.global_boost)
 
     if not args.show:
