@@ -14,6 +14,7 @@ import sys
 import typing as t
 
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 # For ArgumentParser.epilog
 COPYRIGHT = """
@@ -30,23 +31,39 @@ for _ in ("matplotlib", "PIL"):
     logging.getLogger(_).setLevel(logging.INFO)
 
 
-def show_window(title=""):
-    # Maximize window on display. Works on Ubuntu with GTK3Agg/TkAgg backend
+def init_window(layout:str="constrained", backend:str=""):
+    if backend:
+        plt.switch_backend(backend)
+    sns.set_theme()
+    fig, ax = plt.subplots(layout=layout)
+    return fig, ax
+
+
+def show_window(title="Surviving Mars' Sensor Towers scan boost", block=True):
+    # Enlarge window keeping a nice aspect. Works on GTK/Qt/Tk Agg backends (sorry, macOS!)
     # See https://stackoverflow.com/q/12439588/624066
     mng = plt.get_current_fig_manager()
     backend = plt.get_backend()
     log.debug("Matplotlib backend: %s", backend)
-    if backend == "GTK3Agg":
+    if backend.startswith("GTK"):   # GTK3Agg, GTK4Agg
         rect = mng.window.get_screen().get_display().get_primary_monitor().get_workarea()
         size = rect.width, rect.height
-    else:  # assume TkAgg. Who cares about Windows?
+    elif backend.startswith("Qt"):  # QtAgg, Qt5Agg, Qt6Agg
+        qsize = mng.window.screen().availableSize()
+        size = qsize.width(), qsize.height()
+    elif backend.startswith("Tk"):  # TkAgg
         size = mng.window.maxsize()
-    mng.resize(*((min(*size) - 0,) * 2))
+    else:
+        size = (1200, 680)  # Assume desktop of at least 720p (1280x720 minus panels)
+    resize = (min(*size) - 40,) * 2
+    resize = (clamp(int(resize[0] * 1.15), size[0]), resize[1])  # Nice semi-square aspect
+    log.debug("Detected usable desktop area: %s. Resizing to %s", size, resize)
+    mng.resize(*resize)
 
     if title:
+        mng.set_window_title(title)
         plt.suptitle(title, size="x-large", weight="bold")
-    plt.tight_layout()
-    plt.show()
+    plt.show(block=block)
 
 
 def scale(value, numerator, denominator) -> int:

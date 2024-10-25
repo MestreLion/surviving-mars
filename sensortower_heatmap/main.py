@@ -39,6 +39,7 @@ COST_REFERENCE = 44.12  # Average Sector boost for 1 Tower on map center
 TOWERS_GRID_LAYOUT = "margin"
 TOWERS_GRID_SIDE = 3
 TOWERS_GRID_MARGIN = (2, 2)
+HEATMAP_COLORS = "viridis"
 
 log = logging.getLogger(__name__.replace("__", ""))
 tower_generator = u.FunctionCollectionDecorator(remove_suffix="_grid")
@@ -48,9 +49,15 @@ class Statistics:
     num: int
     avg: float
     cost: float
+    title: str
 
     def __init__(self, data, towers, global_boost:bool=True):
         self.num, self.avg, self.cost = self.statistics(data, towers, global_boost)
+        self.title = (
+            f"{self.num} Towers, "
+            f"{self.avg:6.2f} mean boost, "
+            f"normalized cost {self.cost:.1%}"
+        )
 
     @staticmethod
     def statistics(data, towers, global_boost:bool=True):
@@ -70,11 +77,7 @@ class Statistics:
         return num, avg, cost
 
     def __str__(self):
-        return (
-            f"{self.num} Towers, "
-            f"{self.avg:6.2f} mean boost, "
-            f"normalized cost {self.cost:.1%}"
-        )
+        return self.title
 
 
 @dataclasses.dataclass
@@ -169,7 +172,10 @@ def parse_args(argv=None):
         type=float,
         nargs="+",
         metavar=("SX", "SY"),
-        help='Towers grid margins, in Sectors [Default: %(default)s]'
+        help=(
+            "Towers grid margins, in Sectors. Consider SY=SX if SY is not specified. "
+            "[Default: %(default)s]"
+        )
     )
     parser.add_argument(
         "-N",
@@ -186,6 +192,18 @@ def parse_args(argv=None):
         default=True,
         action="store_false",
         help="Do not consider the map-wide boost from the global number of towers",
+    )
+    parser.add_argument(
+        "-b",
+        "--backend",
+        default="",
+        help=f"Force a matplotlib backend. [Current: {plt.get_backend()}]"
+    )
+    parser.add_argument(
+        "-p",
+        "--palette",
+        default=HEATMAP_COLORS,
+        help=f"Color palette ('cmap') to use in the heatmap. [Default: %(default)s]"
     )
     args = parser.parse_args(argv, log_args=False)
 
@@ -207,13 +225,14 @@ def parse_args(argv=None):
     return args
 
 
-def draw_heatmap(data, stats=None, palette:str="viridis", ax:plt.Axes=None) -> plt.Axes:
+def draw_heatmap(
+        data, title:str="", palette:str=HEATMAP_COLORS, colorbar:bool=True, ax:plt.Axes=None,
+) -> plt.Axes:
     # Good colormaps ("_r" means reversed):
     # turbo, rainbow, plasma, viridis, gnuplot2, YlOrBr_r, Spectral_r
     # https://matplotlib.org/stable/users/explain/colors/colormaps.html
 
     # Sectors Heatmap
-    sns.set_theme()
     ax_heatmap = sns.heatmap(
         data,
         cmap=palette,
@@ -226,6 +245,7 @@ def draw_heatmap(data, stats=None, palette:str="viridis", ax:plt.Axes=None) -> p
         xticklabels=string.ascii_uppercase[0:SECTOR_GRID[0]],
         mask=(data == 0),
         ax=ax,
+        cbar=colorbar
     )
     if ax is None:
         ax = ax_heatmap
@@ -239,8 +259,8 @@ def draw_heatmap(data, stats=None, palette:str="viridis", ax:plt.Axes=None) -> p
     ax.invert_yaxis()
     ax.xaxis.tick_bottom()
     ax.yaxis.tick_right()
-    if stats is not None:
-        ax.set_title(stats)
+    if title:
+        ax.set_title(title)
     return ax
 
 
@@ -249,7 +269,7 @@ def draw_towers(towers, tower_size=20, tower_color="red", ax:plt.Axes=None):
     tower_data = [*zip(*np.divide(towers, SECTOR_SIZE))] if len(towers) else ([], [])
     log.debug(f"Tower data for scatter plot:\n%s", tower_data)
     if ax is None:
-        ax = plt
+        ax = plt.gca()  # == plt for scatter purposes
     return ax.scatter(
         *tower_data, marker="*", s=tower_size**2, c=tower_color, picker=True
     )
@@ -267,10 +287,11 @@ def main(argv: t.Optional[t.List[str]] = None):
     if not args.show:
         return
 
-    heatmap = draw_heatmap(data, stats)
+    u.init_window(backend=args.backend)
+    heatmap = draw_heatmap(data, title=stats.title, palette=args.palette)
     _towers = draw_towers(towers, ax=heatmap)
 
-    u.show_window("Surviving Mars' Sensor Towers scan boost")
+    u.show_window()
 
 
 if __name__ == "__main__":
