@@ -86,11 +86,10 @@ class MapSector:
     BOOST_RANGE: t.ClassVar = MAX_RANGE - MIN_RANGE
     sx: int
     sy: int
+    center: t.Tuple[float, float] = dataclasses.field(init=False)
 
-    @property
-    def center(self):
-        """Sector center in map (x, y) coordinates"""
-        return (
+    def __post_init__(self):
+        self.center = (
             self.sx * SECTOR_SIZE[0] + SECTOR_SIZE[0] / 2,
             self.sy * SECTOR_SIZE[1] + SECTOR_SIZE[1] / 2,
         )
