@@ -1,12 +1,10 @@
-#!/usr/bin/env python3
-#
+# This file is part of project <https://github.com/MestreLion/surviving-mars>
 # Copyright (C) 2024 Rodrigo Silva (MestreLion) <linux@rodrigosilva.com>
 # License: GPLv3 or later, at your choice. See <http://www.gnu.org/licenses/gpl>
 
 """
 Surviving Mars Sensor Towers scan boost heatmap using Matplotlib
 """
-
 import dataclasses
 import logging
 import math
@@ -18,7 +16,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
-import util as u
+from . import util as u
+
+__version__ = "2024.10"
 
 # Constants from game data
 # https://github.com/surviving-mars/SurvivingMars/blob/master/Lua/_GameConst.lua#L102
@@ -41,7 +41,7 @@ TOWERS_GRID_SIDE = 3
 TOWERS_GRID_MARGIN = (2, 2)
 HEATMAP_COLORS = "viridis"
 
-log = logging.getLogger(__name__.replace("__", ""))
+log = logging.getLogger(__name__)
 tower_generator = u.FunctionCollectionDecorator(remove_suffix="_grid")
 
 @dataclasses.dataclass
@@ -294,8 +294,10 @@ def main(argv: t.Optional[t.List[str]] = None):
     u.show_window()
 
 
-if __name__ == "__main__":
+def run(argv: t.Optional[t.List[str]] = None) -> None:
+    """CLI entry point, handling exceptions from main() and setting exit code"""
     try:
-        sys.exit(main(sys.argv[1:]))
+        main(argv)
     except KeyboardInterrupt:
-        sys.exit(1)
+        log.info("Aborting")
+        sys.exit(2)  # signal.SIGINT.value, but not actually killed by SIGINT

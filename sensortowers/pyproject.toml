@@ -1,0 +1,46 @@
+# -----------------------------------------------------------------------------
+# Trimmed-down version!
+# -----------------------------------------------------------------------------
+# Metadata
+# https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
+[project]
+name = "sensortowers-heatmap"
+authors = [
+    {name="Rodrigo Silva (MestreLion)", email="linux@rodrigosilva.com"},
+]
+description = "Surviving Mars Sensor Towers scan boost heatmap using Matplotlib"
+license =  {text = "GPL-3.0-or-later"}
+urls."Homepage" = "https://github.com/MestreLion/surviving-mars"
+readme = "README.md"
+dynamic = ["version"]
+
+# -----------------------------------------------------------------------------
+# Requirements
+requires-python = ">=3.8"  # for '/' positional-only arguments
+dependencies = [
+    "matplotlib",
+    "numpy",
+    "seaborn",
+]
+[project.optional-dependencies]
+qt = [
+    "PyQt5",
+]
+
+# -----------------------------------------------------------------------------
+# Entry points
+[project.scripts]
+sensortowers-heatmap = "sensortowers_heatmap.main:run"
+
+# -----------------------------------------------------------------------------
+# Building
+# https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
+[build-system]
+requires = ["setuptools >= 61.0"]  # Supports pyproject.toml configuration
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["sensortowers_heatmap"]  # for flat-layout only
+
+[tool.setuptools.dynamic]
+version = {attr = "sensortowers_heatmap.main.__version__"}
