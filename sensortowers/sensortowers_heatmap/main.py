@@ -152,6 +152,14 @@ def margin_grid(side: int, margin=SECTOR_SIZE, area_size=MAP_SIZE):
     return np.vstack(list(map(np.ravel, mesh))).T
 
 
+@tower_generator("path")
+def custom_grid(path):
+    """
+    Read custom points from numpy-generated text file
+    """
+    return np.loadtxt(path, delimiter=",")
+
+
 def parse_args(argv=None):
     parser = u.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -180,6 +188,12 @@ def parse_args(argv=None):
             "Towers grid margins, in Sectors. Consider SY=SX if SY is not specified. "
             "[Default: %(default)s]"
         ),
+    )
+    parser.add_argument(
+        "-f",
+        "--towers-file",
+        dest="path",
+        help="File with custom towers placement in Numpy text format",
     )
     parser.add_argument(
         "-N",
@@ -224,6 +238,9 @@ def parse_args(argv=None):
     args.function = function.func
     args.function_args = {k: getattr(args, k) for k in function.params}
     args.function_args.update({k: getattr(args, v) for k, v in function.params_map.items()})
+
+    if args.function is custom_grid and args.path is None:
+        parser.error("file is required when using --layout custom", "-f")
 
     log.debug(args)
     return args
