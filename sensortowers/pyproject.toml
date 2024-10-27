@@ -18,13 +18,16 @@ dynamic = ["version"]
 # Requirements
 requires-python = ">=3.8"  # for '/' positional-only arguments
 dependencies = [
-    "matplotlib",
+    "matplotlib",  # >= 3.8 for type stubs (requires python >= 3.9)
     "numpy",
     "seaborn",
 ]
 [project.optional-dependencies]
+dev = [
+    "black",
+]
 qt = [
-    "PyQt5",
+    "PyQt5",  # Matplotlib backend with most GUI features
 ]
 
 # -----------------------------------------------------------------------------
@@ -44,3 +47,10 @@ packages = ["sensortowers_heatmap"]  # for flat-layout only
 
 [tool.setuptools.dynamic]
 version = {attr = "sensortowers_heatmap.main.__version__"}
+
+# -----------------------------------------------------------------------------
+# Tools
+
+[tool.black]
+target-version = ["py38", "py39", "py310", "py311", "py312"]
+line-length = 96

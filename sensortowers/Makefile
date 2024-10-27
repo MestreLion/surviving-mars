@@ -14,7 +14,7 @@ EXEC     ?= sensortowers-heatmap
 ## PACKAGE: Project main package, most likely $(SLUG). To check if installed
 PACKAGE  ?= sensortowers_heatmap
 ## EXTRAS: Extra packages to install for development (via `pip install -e .[$EXTRAS]`)
-EXTRAS   ?= qt
+EXTRAS   ?= qt,dev
 ## PYTHON: System python, used to create the virtual environment
 PYTHON   ?= python3
 ## ENV_DIR: Path to the virtual environment, absolute or relative to current dir
@@ -56,6 +56,10 @@ run: install
 
 ## - install: install the project in editable mode in a virtual environment
 install: $(package_installed)
+
+## - style: apply `black` formatter
+format: $(venv)/black
+	$(venv)/black .
 
 ## - build: build sdist and wheel packages using PyPA's `build` module
 build: venv
