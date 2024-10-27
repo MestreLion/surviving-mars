@@ -24,10 +24,10 @@ __version__ = "2024.10"
 # https://github.com/surviving-mars/SurvivingMars/blob/master/Lua/_GameConst.lua#L102
 SECTOR_GRID = (10, 10)
 SECTOR_SIZE = (40, 40)
-BOOST_MAX = 390      # max boost provided by the nearest tower to the sector
-MIN_RANGE =  20      # range of max boost (boost = max)
-MAX_RANGE = 120      # range of no boost (boost = 0%)
-NUM_BOOST =  10      # every working tower provides this much cumulative boost to all sectors
+BOOST_MAX = 390  # max boost provided by the nearest tower to the sector
+MIN_RANGE = 20  # range of max boost (boost = max)
+MAX_RANGE = 120  # range of no boost (boost = 0%)
+NUM_BOOST = 10  # every working tower provides this much cumulative boost to all sectors
 NUM_BOOST_MAX = 100  # max cumulative scan boost
 
 # Derived constants
@@ -44,6 +44,7 @@ HEATMAP_COLORS = "viridis"
 log = logging.getLogger(__name__)
 tower_generator = u.FunctionCollectionDecorator(remove_suffix="_grid")
 
+
 @dataclasses.dataclass
 class Statistics:
     num: int
@@ -51,7 +52,7 @@ class Statistics:
     cost: float
     title: str
 
-    def __init__(self, data, towers, global_boost:bool=True):
+    def __init__(self, data, towers, global_boost: bool = True):
         self.num, self.avg, self.cost = self.statistics(data, towers, global_boost)
         self.title = (
             f"{self.num} Towers, "
@@ -60,7 +61,7 @@ class Statistics:
         )
 
     @staticmethod
-    def statistics(data, towers, global_boost:bool=True):
+    def statistics(data, towers, global_boost: bool = True):
         num, avg = len(towers), np.average(data)
         if num:
             avg_tower = avg / num
@@ -89,8 +90,10 @@ class MapSector:
     @property
     def center(self):
         """Sector center in map (x, y) coordinates"""
-        return (self.sx * SECTOR_SIZE[0] + SECTOR_SIZE[0] / 2,
-                self.sy * SECTOR_SIZE[1] + SECTOR_SIZE[1] / 2)
+        return (
+            self.sx * SECTOR_SIZE[0] + SECTOR_SIZE[0] / 2,
+            self.sy * SECTOR_SIZE[1] + SECTOR_SIZE[1] / 2,
+        )
 
     def distance(self, point):
         return math.dist(self.center, point)
@@ -111,8 +114,10 @@ class MapSector:
     @classmethod
     def map_scan_boost(cls, towers, global_boost=True) -> np.ndarray:
         """Scan boost for all sectors in given the towers placement"""
+
         def sector_scan_boost(sx, sy):
             return cls(sx, sy).scan_boost(towers, global_boost)
+
         return np.fromfunction(np.vectorize(sector_scan_boost, otypes=[int]), SECTOR_GRID).T
 
 
@@ -127,8 +132,8 @@ def inner_grid(side: int, area_size=MAP_SIZE):
      (200, 100), (200, 200), (200, 300),
      (300, 100), (300, 200), (300, 300)]
     """
-    axes = (np.linspace(0, s, num=int(side)+2)[1:-1] for s in area_size)
-    mesh = np.meshgrid(*axes, indexing='ij')
+    axes = (np.linspace(0, s, num=int(side) + 2)[1:-1] for s in area_size)
+    mesh = np.meshgrid(*axes, indexing="ij")
     return np.vstack(list(map(np.ravel, mesh))).T
 
 
@@ -144,7 +149,7 @@ def margin_grid(side: int, margin=SECTOR_SIZE, area_size=MAP_SIZE):
      (360,  40), (360, 200), (360, 360)]
     """
     axes = np.linspace(margin, np.subtract(area_size, margin), num=side)
-    mesh = np.meshgrid(*zip(*axes), indexing='ij')
+    mesh = np.meshgrid(*zip(*axes), indexing="ij")
     return np.vstack(list(map(np.ravel, mesh))).T
 
 
@@ -156,14 +161,14 @@ def parse_args(argv=None):
         dest="function",
         default=TOWERS_GRID_LAYOUT,
         choices=(tower_generator.functions.keys()),
-        help="Method to generate towers [Default: %(default)s]"
+        help="Method to generate towers [Default: %(default)s]",
     )
     parser.add_argument(
         "-s",
         "--grid-side",
         default=TOWERS_GRID_SIDE,
         type=int,
-        help='Towers grid side [Default: %(default)s]'
+        help="Towers grid side [Default: %(default)s]",
     )
     parser.add_argument(
         "-m",
@@ -175,7 +180,7 @@ def parse_args(argv=None):
         help=(
             "Towers grid margins, in Sectors. Consider SY=SX if SY is not specified. "
             "[Default: %(default)s]"
-        )
+        ),
     )
     parser.add_argument(
         "-N",
@@ -197,20 +202,20 @@ def parse_args(argv=None):
         "-b",
         "--backend",
         default="",
-        help=f"Force a matplotlib backend. [Current: {plt.get_backend()}]"
+        help=f"Force a matplotlib backend. [Current: {plt.get_backend()}]",
     )
     parser.add_argument(
         "-p",
         "--palette",
         default=HEATMAP_COLORS,
-        help=f"Color palette ('cmap') to use in the heatmap. [Default: %(default)s]"
+        help=f"Color palette ('cmap') to use in the heatmap. [Default: %(default)s]",
     )
     args = parser.parse_args(argv, log_args=False)
 
     # Post-process grid margin
     if len(args.grid_margin) == 1:  # make SY=SX if only SX
         args.grid_margin = args.grid_margin * 2
-    elif len(args.grid_margin) > 2: # emulate nargs="{1,2}"
+    elif len(args.grid_margin) > 2:  # emulate nargs="{1,2}"
         parser.error("expected at most two arguments", "-m")
     # Scale from Sector coordinates (sx, sy) to Map coordinates (x, y)
     args.grid_margin = [m * s for m, s in zip(args.grid_margin, SECTOR_SIZE)]
@@ -226,7 +231,11 @@ def parse_args(argv=None):
 
 
 def draw_heatmap(
-        data, title:str="", palette:str=HEATMAP_COLORS, colorbar:bool=True, ax:plt.Axes=None,
+    data,
+    title: str = "",
+    palette: str = HEATMAP_COLORS,
+    colorbar: bool = True,
+    ax: plt.Axes = None,
 ) -> plt.Axes:
     # Good colormaps ("_r" means reversed):
     # turbo, rainbow, plasma, viridis, gnuplot2, YlOrBr_r, Spectral_r
@@ -237,24 +246,26 @@ def draw_heatmap(
         data,
         cmap=palette,
         annot=True,
-        fmt='.0f',
+        fmt=".0f",
         vmin=0,
         vmax=SECTOR_MAX_BOOST,
         linewidths=1,
         square=True,
-        xticklabels=string.ascii_uppercase[0:SECTOR_GRID[0]],
+        xticklabels=string.ascii_uppercase[0 : SECTOR_GRID[0]],
         mask=(data == 0),
         ax=ax,
-        cbar=colorbar
+        cbar=colorbar,
     )
     if ax is None:
         ax = ax_heatmap
+
     def format_coord(sx, sy):
         x, y = np.multiply((sx, sy), SECTOR_SIZE)
         x_label = ax.get_xticklabels()[int(sx)].get_text()
         y_label = ax.get_yticklabels()[int(sy)].get_text()  # str(int(sy))
         z = data[int(sx), int(sy)]
         return f"Sector {x_label}{y_label} (X={x:3.0f}, Y={y:3.0f}) [Scan boost = {z}]"
+
     ax.format_coord = format_coord
     ax.invert_yaxis()
     ax.xaxis.tick_bottom()
@@ -264,15 +275,13 @@ def draw_heatmap(
     return ax
 
 
-def draw_towers(towers, tower_size=20, tower_color="red", ax:plt.Axes=None):
+def draw_towers(towers, tower_size=20, tower_color="red", ax: plt.Axes = None):
     # Scale towers from (x, y) to (sx, sy) to fit on heatmap and reshape as meshgrid
     tower_data = [*zip(*np.divide(towers, SECTOR_SIZE))] if len(towers) else ([], [])
     log.debug(f"Tower data for scatter plot:\n%s", tower_data)
     if ax is None:
         ax = plt.gca()  # == plt for scatter purposes
-    return ax.scatter(
-        *tower_data, marker="*", s=tower_size**2, c=tower_color, picker=True
-    )
+    return ax.scatter(*tower_data, marker="*", s=tower_size**2, c=tower_color, picker=True)
 
 
 def main(argv: t.Optional[t.List[str]] = None):

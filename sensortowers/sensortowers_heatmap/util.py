@@ -22,7 +22,7 @@ Copyright (C) 2024 Rodrigo Silva (MestreLion) <linux@rodrigosilva.com>
 License: GPLv3 or later, at your choice. See <http://www.gnu.org/licenses/gpl>
 """
 
-AnyFunction: 't.TypeAlias' = t.Callable[..., t.Any]
+AnyFunction: "t.TypeAlias" = t.Callable[..., t.Any]
 
 log: logging.Logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ for _ in ("matplotlib", "PIL"):
     logging.getLogger(_).setLevel(logging.INFO)
 
 
-def init_window(layout:str="constrained", backend:str=""):
+def init_window(layout: str = "constrained", backend: str = ""):
     if backend:
         plt.switch_backend(backend)
     sns.set_theme()
@@ -45,7 +45,7 @@ def show_window(title="Surviving Mars' Sensor Towers scan boost", block=True):
     mng = plt.get_current_fig_manager()
     backend = plt.get_backend()
     log.debug("Matplotlib backend: %s", backend)
-    if backend.startswith("GTK"):   # GTK3Agg, GTK4Agg
+    if backend.startswith("GTK"):  # GTK3Agg, GTK4Agg
         rect = mng.window.get_screen().get_display().get_primary_monitor().get_workarea()
         size = rect.width, rect.height
     elif backend.startswith("Qt"):  # QtAgg, Qt5Agg, Qt6Agg
@@ -74,18 +74,21 @@ def scale(value, numerator, denominator) -> int:
 def clamp(value, upper=None, lower=None):
     """Helper function to replace min()/max() usage as upper/lower bounds of a value"""
     v = value
-    if upper is not None: v = min(value, upper)
-    if lower is not None: v = max(value, lower)
+    if upper is not None:
+        v = min(value, upper)
+    if lower is not None:
+        v = max(value, lower)
     return v
 
 
 if sys.version_info >= (3, 9):
     removesuffix = str.removesuffix  # noqa
 else:
+
     def removesuffix(self: str, suffix: str, /) -> str:
         """str.removesuffix() for Python < 3.9: https://peps.python.org/pep-0616"""
         if suffix and self.endswith(suffix):
-            return self[:-len(suffix)]
+            return self[: -len(suffix)]
         else:
             return self[:]
 
@@ -95,6 +98,7 @@ class FunctionParams:
     func: AnyFunction
     params: t.Tuple[str, ...] = ()
     params_map: t.Dict[str, str] = dataclasses.field(default_factory=dict)
+
     def __repr__(self):
         return "<{} {}({})>".format(
             self.__class__.__name__,
@@ -123,29 +127,33 @@ class FunctionCollectionDecorator(dict):
              'func2': <FunctionParams f2()>,
              'func3': <FunctionParams f3(a, b, foo='bar')>}
     """
+
     def __init__(self, *args, **kwargs):
         self.suffix = kwargs.pop("remove_suffix", "")
         super().__init__(*args, **kwargs)
-    def __call__(self, arg:t.Union[AnyFunction, str, None]=None, /, *args: str,**kwargs: str):
+
+    def __call__(
+        self, arg: t.Union[AnyFunction, str, None] = None, /, *args: str, **kwargs: str
+    ):
         def decorator(func: AnyFunction):
-            self[removesuffix(func.__name__, self.suffix)] = FunctionParams(
-                func, args, kwargs
-            )
+            self[removesuffix(func.__name__, self.suffix)] = FunctionParams(func, args, kwargs)
             return func
+
         if callable(arg) and not (args or kwargs):
             # Assume decoration without arguments
             return decorator(arg)
         if arg is not None:
             args = (arg, *args)
         return decorator
+
     @property
     def functions(self) -> t.Dict[str, FunctionParams]:
         return self
 
+
 class ArgumentParser(argparse.ArgumentParser):
     __doc__ = (
-        (argparse.ArgumentParser.__doc__ or "")
-        + "\nWith many changes and new features"
+        (argparse.ArgumentParser.__doc__ or "") + "\nWith many changes and new features"
     ).strip()
     FileType = argparse.FileType
 
@@ -221,7 +229,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 log.debug(arguments)
         return arguments
 
-    def error(self, message, argument:str=""):
+    def error(self, message, argument: str = ""):
         if not argument:
             super().error(message)
         for action in self._actions:
