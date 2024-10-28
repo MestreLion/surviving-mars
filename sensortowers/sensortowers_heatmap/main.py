@@ -195,7 +195,10 @@ def parse_args(argv=None):
         "-f",
         "--towers-file",
         dest="path",
-        help="File with custom towers placement in Numpy text format",
+        help=(
+            "File with custom towers placement in Numpy text format. "
+            "Implies '--layout custom', and is required by it."
+        )
     )
     parser.add_argument(
         "-N",
@@ -235,14 +238,17 @@ def parse_args(argv=None):
     # Scale from Sector coordinates (sx, sy) to Map coordinates (x, y)
     args.grid_margin = [m * s for m, s in zip(args.grid_margin, SECTOR_SIZE)]
 
+    # Post-process file and custom layout
+    if args.function == "custom" and args.path is None:
+        parser.error("file is required when using --layout custom", "-f")
+    if args.path is not None:
+        args.function = "custom"
+
     # Post-process tower generator function and args
     function = tower_generator.functions[args.function]
     args.function = function.func
     args.function_args = {k: getattr(args, k) for k in function.params}
     args.function_args.update({k: getattr(args, v) for k, v in function.params_map.items()})
-
-    if args.function is custom_grid and args.path is None:
-        parser.error("file is required when using --layout custom", "-f")
 
     log.debug(args)
     return args
