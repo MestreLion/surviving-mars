@@ -148,6 +148,8 @@ def margin_grid(side: int, margin=SECTOR_SIZE, area_size=MAP_SIZE):
      (360,  40), (360, 200), (360, 360)]
     """
     axes = np.linspace(margin, np.subtract(area_size, margin), num=side)
+    if not len(axes):
+        axes = [[np.array([])] * 2]
     mesh = np.meshgrid(*zip(*axes), indexing="ij")
     return np.vstack(list(map(np.ravel, mesh))).T
 
