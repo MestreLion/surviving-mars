@@ -64,44 +64,54 @@ def minimize(func, x0, bounds):
     return sco.minimize(func, x0, bounds=bounds)
 
 
-def sorted_points(arr:np.ndarray):
-    return arr[np.lexsort(np.transpose(arr)[::-1])].copy()
+def sorted_points(points:np.ndarray, decimals:int=2):
+    # While this _could_ preserve the original data and use decimals only for sorting,
+    # I think it would be very surprising if (1.85, 300.00) came after (2.15, 10.00),
+    # if not plain wrong, regardless of the precision used or how handy this could be.
+    # However, it's still open for debate. If changed, the new API would require 2
+    # arguments, one for sort precision and another for data rounding. Both taking
+    # None as a "do not change" value, being the default or not.
+    rounded = np.round(points, decimals)
+    return rounded[np.lexsort(np.transpose(rounded)[::-1])]
 
 
-def save_solution(arr:np.ndarray):
-    path = f"solution_{time.time_ns()}.txt"
-    np.savetxt(path, arr, fmt='%6.2f', delimiter=", ")
-    return path
+def save_result(result:sco.OptimizeResult):
+    decimals = 2
+    towers = result.x.reshape(SHAPE_TOWER)
+    mean = -(result.fun if isinstance(result.fun, float) else result.fun[0])
+    path = f"result_{len(towers):02d}_{round(mean)}_{int(result.nit)}_{u.timestamp()}.txt"
+    solution = sorted_points(towers)
+    np.savetxt(path, solution, fmt=f'%{decimals+4}.{decimals}f', delimiter=", ")
+    return path, solution, mean
 
 
 def draw_towers(towers, size=20, color="red", marker="*", label="Tower", mean=0.0):
     return plt.scatter(*zip(*towers), marker=marker, s=size**2, c=color, label=f"{mean:6.2f}: {label}")
 
 
-def measure(func, *args, **kwargs):
+def measure(func, /, *args, **kwargs):
+    # TODO: Make this a true decorator and apply to dual_annealing, minimize, etc
     start = time.time()
     result = func(*args, **kwargs)
     delta = time.time() - start
     print(f"Results:\n{result!r}")
-    if hasattr(result, "x"):
-        solution = sorted_points(result.x.reshape(SHAPE_TOWER))
-        path = save_solution(solution)
+    if isinstance(result, sco.OptimizeResult):
+        path, solution, mean = save_result(result)
+        print(f"Solution:\n{solution}, Boost = {mean:.2f}")
     else:
+        path = ""
+        solution = []
+        mean = 0
         try:
-            solution = "\n".join(f"\t{k} = {v!r}" for k, v in sorted(vars(result).items()))
+            items = "\n".join(f"\t{k} = {v!r}" for k, v in sorted(vars(result).items()))
+            print(f"Solution:\n{items}")
         except TypeError:
             pass
-            solution = None
-        path = ""
-    val = ""
-    if hasattr(result, "fun") and isinstance(result.fun, float):
-        val = f", Boost={result.fun:.2f}"
-    print(f"Solution:\n{solution}{val}")
     print(f"mean_boost() calls: {mean_boost.calls}")
     if path:
         print(f"Saved as: {path}")
     print(f"Runtime: {datetime.timedelta(seconds=int(delta))}")
-    return solution, -result.fun if path else result
+    return result, solution, mean, path
 
 
 def main():
@@ -112,13 +122,12 @@ def main():
         (m.margin_grid(SIDE, MARGINS[SIDE]), "Margin", "red"),
     ):
         mean = m.MapSector.map_scan_boost(towers).mean()
-        # draw_towers(towers, label=label, color=color, mean=mean)
+        draw_towers(towers, label=label, color=color, mean=mean)
         print(f"{towers}, {mean:6.2f} {label}, {len(towers)} towers")
-    # func = count_calls(lambda x: len(set(x)) * abs(100 - x.mean()) )
-    func = mean_boost
     bounds = BOUNDS * NUM_TOWERS
-    # x0 = np.zeros((2 * NUM_TOWERS,))
-    towers, value = measure(dual_annealing, func, bounds=bounds, maxiter=maxiter)
+    optimizer_func = dual_annealing
+    optimizer_kwargs = dict(func=mean_boost, bounds=bounds, maxiter=maxiter)
+    _, towers, value, _ = measure(optimizer_func, **optimizer_kwargs)
     if isinstance(towers, np.ndarray):
         draw_towers(towers, color="green", marker="o", size=10, label="Best", mean=value)
         plt.legend()

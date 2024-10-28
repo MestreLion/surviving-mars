@@ -11,6 +11,7 @@ import argparse
 import dataclasses
 import logging
 import sys
+import time
 import typing as t
 
 import matplotlib.pyplot as plt
@@ -79,6 +80,15 @@ def clamp(value, upper=None, lower=None):
     if lower is not None:
         v = max(value, lower)
     return v
+
+
+def timestamp(secs: t.Optional[int] = None) -> str:
+    """Compact date and time string in local time from seconds since UNIX epoch
+
+    Output format is suitable as a compact timestamp for logs and filenames
+    Example: timestamp(1234567890) -> '20090213213130'
+    """
+    return time.strftime('%Y%m%d%H%M%S', time.localtime(secs))
 
 
 if sys.version_info >= (3, 9):
