@@ -198,7 +198,7 @@ def parse_args(argv=None):
         help=(
             "File with custom towers placement in Numpy text format. "
             "Implies '--layout custom', and is required by it."
-        )
+        ),
     )
     parser.add_argument(
         "-N",
@@ -305,7 +305,7 @@ def draw_towers(towers, tower_size=20, tower_color="red", ax: plt.Axes = None):
     log.debug(f"Tower data for scatter plot:\n%s", tower_data)
     if ax is None:
         ax = plt.gca()  # == plt for scatter purposes
-    return ax.scatter(*tower_data, marker="*", s=tower_size**2, c=tower_color, picker=True)
+    return ax.scatter(*tower_data, marker="*", s=tower_size**2, c=tower_color)
 
 
 def main(argv: t.Optional[t.List[str]] = None):

@@ -28,21 +28,23 @@ MARGINS = {
     3: (80, 80),
 }
 if not NUM_TOWERS:
-    NUM_TOWERS = SIDE ** 2
+    NUM_TOWERS = SIDE**2
 SHAPE_TOWER = (NUM_TOWERS, 2)
 BOUNDS = [(0, dim) for dim in m.MAP_SIZE]
 u.init_window()
 plt.xlim(BOUNDS[0])
 plt.ylim(BOUNDS[1])
 plt.gca().set_aspect("equal")
-plt.xticks(np.linspace(*BOUNDS[0], num=m.SECTOR_GRID[0]+1))
-plt.yticks(np.linspace(*BOUNDS[1], num=m.SECTOR_GRID[1]+1))
+plt.xticks(np.linspace(*BOUNDS[0], num=m.SECTOR_GRID[0] + 1))
+plt.yticks(np.linspace(*BOUNDS[1], num=m.SECTOR_GRID[1] + 1))
+
 
 def count_calls(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         wrapper.calls += 1
         return func(*args, **kwargs)
+
     wrapper.calls = 0
     return wrapper
 
@@ -64,7 +66,7 @@ def minimize(func, x0, bounds):
     return sco.minimize(func, x0, bounds=bounds)
 
 
-def sorted_points(points:np.ndarray, decimals:int=2):
+def sorted_points(points: np.ndarray, decimals: int = 2):
     # While this _could_ preserve the original data and use decimals only for sorting,
     # I think it would be very surprising if (1.85, 300.00) came after (2.15, 10.00),
     # if not plain wrong, regardless of the precision used or how handy this could be.
@@ -75,18 +77,20 @@ def sorted_points(points:np.ndarray, decimals:int=2):
     return rounded[np.lexsort(np.transpose(rounded)[::-1])]
 
 
-def save_result(result:sco.OptimizeResult):
+def save_result(result: sco.OptimizeResult):
     decimals = 2
     towers = result.x.reshape(SHAPE_TOWER)
     mean = -(result.fun if isinstance(result.fun, float) else result.fun[0])
     path = f"result_{len(towers):02d}_{round(mean)}_{int(result.nit)}_{u.timestamp()}.txt"
     solution = sorted_points(towers)
-    np.savetxt(path, solution, fmt=f'%{decimals+4}.{decimals}f', delimiter=", ")
+    np.savetxt(path, solution, fmt=f"%{decimals+4}.{decimals}f", delimiter=", ")
     return path, solution, mean
 
 
 def draw_towers(towers, size=20, color="red", marker="*", label="Tower", mean=0.0):
-    return plt.scatter(*zip(*towers), marker=marker, s=size**2, c=color, label=f"{mean:6.2f}: {label}")
+    return plt.scatter(
+        *zip(*towers), marker=marker, s=size**2, c=color, label=f"{mean:6.2f}: {label}"
+    )
 
 
 def measure(func, /, *args, **kwargs):

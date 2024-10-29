@@ -32,15 +32,23 @@ for _ in ("matplotlib", "PIL"):
     logging.getLogger(_).setLevel(logging.INFO)
 
 
-def init_window(layout: str = "constrained", backend: str = ""):
+def init_window(
+    *args,
+    backend: str = "",
+    theme: bool = True,
+    mosaic: bool = False,
+    **kwargs,
+):
     if backend:
         plt.switch_backend(backend)
-    sns.set_theme()
-    fig, ax = plt.subplots(layout=layout)
+    if theme:
+        sns.set_theme()
+    kwargs.setdefault("layout", "constrained")
+    fig, ax = (plt.subplot_mosaic if mosaic else plt.subplots)(*args, **kwargs)
     return fig, ax
 
 
-def show_window(title="Surviving Mars' Sensor Towers scan boost", block=True):
+def show_window(title="Surviving Mars' Sensor Towers scan boost", block=True, aspect=1.15):
     # Enlarge window keeping a nice aspect. Works on GTK/Qt/Tk Agg backends (sorry, macOS!)
     # See https://stackoverflow.com/q/12439588/624066
     mng = plt.get_current_fig_manager()
@@ -57,7 +65,7 @@ def show_window(title="Surviving Mars' Sensor Towers scan boost", block=True):
     else:
         size = (1200, 680)  # Assume desktop of at least 720p (1280x720 minus panels)
     resize = (min(*size) - 40,) * 2
-    resize = (clamp(int(resize[0] * 1.15), size[0]), resize[1])  # Nice semi-square aspect
+    resize = (clamp(int(resize[0] * aspect), size[0]), resize[1])  # Nice semi-square aspect
     log.debug("Detected usable desktop area: %s. Resizing to %s", size, resize)
     mng.resize(*resize)
 
@@ -88,7 +96,7 @@ def timestamp(secs: t.Optional[int] = None) -> str:
     Output format is suitable as a compact timestamp for logs and filenames
     Example: timestamp(1234567890) -> '20090213213130'
     """
-    return time.strftime('%Y%m%d%H%M%S', time.localtime(secs))
+    return time.strftime("%Y%m%d%H%M%S", time.localtime(secs))
 
 
 if sys.version_info >= (3, 9):
