@@ -6,36 +6,28 @@ Surviving Mars Sensor Towers scan boost heatmap using Matplotlib
 """
 import dataclasses
 import logging
-import string
 import sys
 import typing as t
 
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 
 from . import util as u
 
 __version__ = "2024.10"
 
 from .gamedata import (
-    # Constants
-    SECTOR_GRID,
     SECTOR_SIZE,
     NUM_BOOST,
-    # Derived constants
-    MAP_SIZE,  # (400, 400)
-    SECTOR_MAX_BOOST,  # 490
-    # Functions and classes
+    MAP_SIZE,
     MapSector,
 )
-
+from . import drawing as d
 
 # Parameters default values
 TOWERS_GRID_LAYOUT = "margin"
 TOWERS_GRID_SIDE = 3
 TOWERS_GRID_MARGIN = (2, 2)
-HEATMAP_COLORS = "viridis"
 
 log = logging.getLogger(__name__)
 tower_generator = u.FunctionCollectionDecorator(remove_suffix="_grid")
@@ -185,7 +177,7 @@ def parse_args(argv=None):
     parser.add_argument(
         "-p",
         "--palette",
-        default=HEATMAP_COLORS,
+        default=d.HEATMAP_PALETTE,
         help=f"Color palette ('cmap') to use in the heatmap. [Default: %(default)s]",
     )
     args = parser.parse_args(argv, log_args=False)
@@ -214,60 +206,6 @@ def parse_args(argv=None):
     return args
 
 
-def draw_heatmap(
-    data,
-    title: str = "",
-    palette: str = HEATMAP_COLORS,
-    colorbar: bool = True,
-    ax: plt.Axes = None,
-) -> plt.Axes:
-    # Good colormaps ("_r" means reversed):
-    # turbo, rainbow, plasma, viridis, gnuplot2, YlOrBr_r, Spectral_r
-    # https://matplotlib.org/stable/users/explain/colors/colormaps.html
-
-    # Sectors Heatmap
-    ax_heatmap = sns.heatmap(
-        data,
-        cmap=palette,
-        annot=True,
-        fmt=".0f",
-        vmin=0,
-        vmax=SECTOR_MAX_BOOST,
-        linewidths=1,
-        square=True,
-        xticklabels=string.ascii_uppercase[0 : SECTOR_GRID[0]],
-        mask=(data == 0),
-        ax=ax,
-        cbar=colorbar,
-    )
-    if ax is None:
-        ax = ax_heatmap
-
-    def format_coord(sx, sy):
-        x, y = np.multiply((sx, sy), SECTOR_SIZE)
-        x_label = ax.get_xticklabels()[int(sx)].get_text()
-        y_label = ax.get_yticklabels()[int(sy)].get_text()  # str(int(sy))
-        z = data[int(sx), int(sy)]
-        return f"Sector {x_label}{y_label} (X={x:3.0f}, Y={y:3.0f}) [Scan boost = {z}]"
-
-    ax.format_coord = format_coord
-    ax.invert_yaxis()
-    ax.xaxis.tick_bottom()
-    ax.yaxis.tick_right()
-    if title:
-        ax.set_title(title)
-    return ax
-
-
-def draw_towers(towers, tower_size=20, tower_color="red", ax: plt.Axes = None):
-    # Scale towers from (x, y) to (sx, sy) to fit on heatmap and reshape as meshgrid
-    tower_data = [*zip(*np.divide(towers, SECTOR_SIZE))] if len(towers) else ([], [])
-    log.debug(f"Tower data for scatter plot:\n%s", tower_data)
-    if ax is None:
-        ax = plt.gca()  # == plt for scatter purposes
-    return ax.scatter(*tower_data, marker="*", s=tower_size**2, c=tower_color)
-
-
 def main(argv: t.Optional[t.List[str]] = None):
     args = parse_args(argv)
 
@@ -280,11 +218,11 @@ def main(argv: t.Optional[t.List[str]] = None):
     if not args.show:
         return
 
-    u.init_window(backend=args.backend)
-    heatmap = draw_heatmap(data, title=stats.title, palette=args.palette)
-    _towers = draw_towers(towers, ax=heatmap)
+    d.init_window(backend=args.backend)
+    heatmap = d.draw_seaborn_heatmap(data, title=stats.title, palette=args.palette)
+    _towers = d.draw_towers(towers, ax=heatmap)
 
-    u.show_window()
+    d.show_window()
 
 
 def run(argv: t.Optional[t.List[str]] = None) -> None:

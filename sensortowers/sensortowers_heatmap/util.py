@@ -13,75 +13,12 @@ import sys
 import time
 import typing_extensions as t
 
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-# For ArgumentParser.epilog
-COPYRIGHT = """
-Copyright (C) 2024 Rodrigo Silva (MestreLion) <linux@rodrigosilva.com>
-License: GPLv3 or later, at your choice. See <http://www.gnu.org/licenses/gpl>
-"""
-
 AnyFunction: t.TypeAlias = t.Callable[..., t.Any]
-AxesGrid: t.TypeAlias = t.Union[
-    plt.Axes,
-    t.List[t.List[plt.Axes]],
-    t.Dict[str, plt.Axes],
-]
-
 log: logging.Logger = logging.getLogger(__name__)
 
 # Disable debug logging for some chatty libs
 for _ in ("matplotlib", "PIL"):
     logging.getLogger(_).setLevel(logging.INFO)
-
-
-def init_window(
-    *args,
-    backend: str = "",
-    theme: bool = True,
-    mosaic: bool = False,
-    **kwargs,
-) -> t.Tuple[plt.Figure, AxesGrid]:
-    if backend:
-        plt.switch_backend(backend)
-    if theme:
-        sns.set_theme()
-    kwargs.setdefault("layout", "constrained")
-    fig, ax = (plt.subplot_mosaic if mosaic else plt.subplots)(*args, **kwargs)
-    return fig, ax
-
-
-def show_window(title="Surviving Mars' Sensor Towers scan boost", block=True, aspect=1.15):
-    # Enlarge window keeping a nice aspect. Works on GTK/Qt/Tk Agg backends (sorry, macOS!)
-    # See https://stackoverflow.com/q/12439588/624066
-    mng = plt.get_current_fig_manager()
-    backend = plt.get_backend()
-    log.debug("Matplotlib backend: %s", backend)
-    if backend.startswith("GTK"):  # GTK3Agg, GTK4Agg
-        rect = mng.window.get_screen().get_display().get_primary_monitor().get_workarea()
-        size = rect.width, rect.height
-    elif backend.startswith("Qt"):  # QtAgg, Qt5Agg, Qt6Agg
-        qsize = mng.window.screen().availableSize()
-        size = qsize.width(), qsize.height()
-    elif backend.startswith("Tk"):  # TkAgg
-        size = mng.window.maxsize()
-    else:
-        size = (1200, 680)  # Assume desktop of at least 720p (1280x720 minus panels)
-    resize = (min(*size) - 40,) * 2
-    resize = (clamp(int(resize[0] * aspect), size[0]), resize[1])  # Nice semi-square aspect
-    log.debug("Detected usable desktop area: %s. Resizing to %s", size, resize)
-    mng.resize(*resize)
-
-    if title:
-        mng.set_window_title(title)
-        plt.suptitle(title, size="x-large", weight="bold")
-    plt.show(block=block)
-
-
-def scale(value, numerator, denominator) -> int:
-    """Helper function mimicking Surviving Mars' MulDivRound()"""
-    return round(value * numerator / denominator)
 
 
 def clamp(value, upper=None, lower=None):
@@ -178,6 +115,13 @@ class ArgumentParser(argparse.ArgumentParser):
     __doc__ = (
         (argparse.ArgumentParser.__doc__ or "") + "\nWith many changes and new features"
     ).strip()
+    COPYRIGHT = """
+    Copyright (C) 2024 Rodrigo Silva (MestreLion) <linux@rodrigosilva.com>
+    License: GPLv3 or later, at your choice. See <http://www.gnu.org/licenses/gpl>
+    """.replace(
+        "    ", ""
+    )
+
     FileType = argparse.FileType
 
     def __init__(
@@ -196,7 +140,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
         if not self.epilog:
             if self.epilog is None:
-                self.epilog = COPYRIGHT
+                self.epilog = self.COPYRIGHT
                 self.formatter_class = argparse.RawDescriptionHelpFormatter
             else:
                 self.epilog = None

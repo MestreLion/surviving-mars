@@ -7,11 +7,11 @@ Constants, functions and classes from game data
 import dataclasses
 import logging
 import math
-import typing as t
+import typing as _t
 
-import numpy as np
+import numpy as _np
 
-from . import util as u
+from . import util as _u
 
 # Constants
 # https://github.com/surviving-mars/SurvivingMars/blob/master/Lua/_GameConst.lua#L102
@@ -24,24 +24,26 @@ NUM_BOOST = 10  # every working tower provides this much cumulative boost to all
 NUM_BOOST_MAX = 100  # max cumulative scan boost
 
 # Derived constants
-MAP_SIZE = np.multiply(SECTOR_GRID, SECTOR_SIZE)  # (400, 400)
-SECTOR_MAX_BOOST = BOOST_MAX + NUM_BOOST_MAX  # 490
+MAP_SIZE = _np.multiply(SECTOR_GRID, SECTOR_SIZE)  # (400, 400)
+SECTOR_MAX_BOOST: int = BOOST_MAX + NUM_BOOST_MAX  # 490
 
 _log = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
 class MapSector:
-    BOOST_RANGE: t.ClassVar[int] = MAX_RANGE - MIN_RANGE
+    BOOST_RANGE: _t.ClassVar[int] = MAX_RANGE - MIN_RANGE
     sx: int
     sy: int
-    center: t.Tuple[float, float] = dataclasses.field(init=False)
+    center: _t.Tuple[float, float] = dataclasses.field(init=False)
+    name: str = dataclasses.field(init=False)
 
     def __post_init__(self):
         self.center = (
             self.sx * SECTOR_SIZE[0] + SECTOR_SIZE[0] / 2,
             self.sy * SECTOR_SIZE[1] + SECTOR_SIZE[1] / 2,
         )
+        self.name = ""
 
     def distance(self, point):
         return math.dist(self.center, point)
@@ -50,20 +52,25 @@ class MapSector:
         """Scan boost for this Sector given the towers placement"""
         # https://github.com/surviving-mars/SurvivingMars/blob/master/Lua/Exploration.lua#L284
         # function MapSector:GetTowerBoost(city)
-        boost = u.clamp(len(towers) * NUM_BOOST, NUM_BOOST_MAX) if global_boost else 0
+        boost = _u.clamp(len(towers) * NUM_BOOST, NUM_BOOST_MAX) if global_boost else 0
         best = min(self.distance(tower) for tower in towers) if len(towers) else MAX_RANGE
         if best < MAX_RANGE:
-            boost += u.scale(
-                BOOST_MAX, u.clamp(MAX_RANGE - best, self.BOOST_RANGE), self.BOOST_RANGE
+            boost += self.scale(
+                BOOST_MAX, _u.clamp(MAX_RANGE - best, self.BOOST_RANGE), self.BOOST_RANGE
             )
         _log.debug("Sector boost (%s, %s) = %s", self.sx, self.sy, boost)
         return boost
 
     @classmethod
-    def map_scan_boost(cls, towers, global_boost=True) -> np.ndarray:
+    def map_scan_boost(cls, towers, global_boost=True) -> _np.ndarray:
         """Scan boost for all sectors in given the towers placement"""
 
         def sector_scan_boost(sx, sy):
             return cls(sx, sy).scan_boost(towers, global_boost)
 
-        return np.fromfunction(np.vectorize(sector_scan_boost, otypes=[int]), SECTOR_GRID).T
+        return _np.fromfunction(_np.vectorize(sector_scan_boost, otypes=[int]), SECTOR_GRID).T
+
+    @staticmethod
+    def scale(value, numerator, denominator) -> int:
+        """Helper function mimicking Surviving Mars' MulDivRound()"""
+        return round(value * numerator / denominator)
