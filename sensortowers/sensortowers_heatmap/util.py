@@ -1,7 +1,6 @@
 # This file is part of project <https://github.com/MestreLion/surviving-mars>
 # Copyright (C) 2024 Rodrigo Silva (MestreLion) <linux@rodrigosilva.com>
 # License: GPLv3 or later, at your choice. See <http://www.gnu.org/licenses/gpl>
-
 """
 Miscellaneous utility functions
 """
@@ -12,7 +11,7 @@ import dataclasses
 import logging
 import sys
 import time
-import typing as t
+import typing_extensions as t
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -23,7 +22,12 @@ Copyright (C) 2024 Rodrigo Silva (MestreLion) <linux@rodrigosilva.com>
 License: GPLv3 or later, at your choice. See <http://www.gnu.org/licenses/gpl>
 """
 
-AnyFunction: "t.TypeAlias" = t.Callable[..., t.Any]
+AnyFunction: t.TypeAlias = t.Callable[..., t.Any]
+AxesGrid: t.TypeAlias = t.Union[
+    plt.Axes,
+    t.List[t.List[plt.Axes]],
+    t.Dict[str, plt.Axes],
+]
 
 log: logging.Logger = logging.getLogger(__name__)
 
@@ -38,7 +42,7 @@ def init_window(
     theme: bool = True,
     mosaic: bool = False,
     **kwargs,
-):
+) -> t.Tuple[plt.Figure, AxesGrid]:
     if backend:
         plt.switch_backend(backend)
     if theme:
@@ -83,6 +87,7 @@ def scale(value, numerator, denominator) -> int:
 def clamp(value, upper=None, lower=None):
     """Helper function to replace min()/max() usage as upper/lower bounds of a value"""
     v = value
+
     if upper is not None:
         v = min(value, upper)
     if lower is not None:

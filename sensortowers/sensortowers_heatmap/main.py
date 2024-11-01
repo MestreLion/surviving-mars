@@ -1,13 +1,11 @@
 # This file is part of project <https://github.com/MestreLion/surviving-mars>
 # Copyright (C) 2024 Rodrigo Silva (MestreLion) <linux@rodrigosilva.com>
 # License: GPLv3 or later, at your choice. See <http://www.gnu.org/licenses/gpl>
-
 """
 Surviving Mars Sensor Towers scan boost heatmap using Matplotlib
 """
 import dataclasses
 import logging
-import math
 import string
 import sys
 import typing as t
@@ -20,20 +18,18 @@ from . import util as u
 
 __version__ = "2024.10"
 
-# Constants from game data
-# https://github.com/surviving-mars/SurvivingMars/blob/master/Lua/_GameConst.lua#L102
-SECTOR_GRID = (10, 10)
-SECTOR_SIZE = (40, 40)
-BOOST_MAX = 390  # max boost provided by the nearest tower to the sector
-MIN_RANGE = 20  # range of max boost (boost = max)
-MAX_RANGE = 120  # range of no boost (boost = 0%)
-NUM_BOOST = 10  # every working tower provides this much cumulative boost to all sectors
-NUM_BOOST_MAX = 100  # max cumulative scan boost
+from .gamedata import (
+    # Constants
+    SECTOR_GRID,
+    SECTOR_SIZE,
+    NUM_BOOST,
+    # Derived constants
+    MAP_SIZE,  # (400, 400)
+    SECTOR_MAX_BOOST,  # 490
+    # Functions and classes
+    MapSector,
+)
 
-# Derived constants
-MAP_SIZE = np.multiply(SECTOR_GRID, SECTOR_SIZE)  # (400, 400)
-SECTOR_MAX_BOOST = BOOST_MAX + NUM_BOOST_MAX  # 490
-COST_REFERENCE = 44.12  # Average Sector boost for 1 Tower on map center
 
 # Parameters default values
 TOWERS_GRID_LAYOUT = "margin"
@@ -52,6 +48,9 @@ class Statistics:
     cost: float
     title: str
 
+    # Average Sector boost for 1 Tower on map center and no global boost
+    COST_REFERENCE: t.ClassVar[float] = 44.12
+
     def __init__(self, data, towers, global_boost: bool = True):
         self.num, self.avg, self.cost = self.statistics(data, towers, global_boost)
         self.title = (
@@ -60,12 +59,12 @@ class Statistics:
             f"normalized cost {self.cost:.1%}"
         )
 
-    @staticmethod
-    def statistics(data, towers, global_boost: bool = True):
+    @classmethod
+    def statistics(cls, data, towers, global_boost: bool = True):
         num, avg = len(towers), np.average(data)
         if num:
             avg_tower = avg / num
-            cost = (COST_REFERENCE + (NUM_BOOST if global_boost else 0)) / avg_tower
+            cost = (cls.COST_REFERENCE + (NUM_BOOST if global_boost else 0)) / avg_tower
         else:
             avg_tower = cost = 0
         log.info(
@@ -79,45 +78,6 @@ class Statistics:
 
     def __str__(self):
         return self.title
-
-
-@dataclasses.dataclass
-class MapSector:
-    BOOST_RANGE: t.ClassVar = MAX_RANGE - MIN_RANGE
-    sx: int
-    sy: int
-    center: t.Tuple[float, float] = dataclasses.field(init=False)
-
-    def __post_init__(self):
-        self.center = (
-            self.sx * SECTOR_SIZE[0] + SECTOR_SIZE[0] / 2,
-            self.sy * SECTOR_SIZE[1] + SECTOR_SIZE[1] / 2,
-        )
-
-    def distance(self, point):
-        return math.dist(self.center, point)
-
-    def scan_boost(self, towers, global_boost=True) -> int:
-        """Scan boost for this Sector given the towers placement"""
-        # https://github.com/surviving-mars/SurvivingMars/blob/master/Lua/Exploration.lua#L284
-        # function MapSector:GetTowerBoost(city)
-        boost = u.clamp(len(towers) * NUM_BOOST, NUM_BOOST_MAX) if global_boost else 0
-        best = min(self.distance(tower) for tower in towers) if len(towers) else MAX_RANGE
-        if best < MAX_RANGE:
-            boost += u.scale(
-                BOOST_MAX, u.clamp(MAX_RANGE - best, self.BOOST_RANGE), self.BOOST_RANGE
-            )
-        log.debug("Sector boost (%s, %s) = %s", self.sx, self.sy, boost)
-        return boost
-
-    @classmethod
-    def map_scan_boost(cls, towers, global_boost=True) -> np.ndarray:
-        """Scan boost for all sectors in given the towers placement"""
-
-        def sector_scan_boost(sx, sy):
-            return cls(sx, sy).scan_boost(towers, global_boost)
-
-        return np.fromfunction(np.vectorize(sector_scan_boost, otypes=[int]), SECTOR_GRID).T
 
 
 @tower_generator(side="grid_side")

@@ -21,6 +21,9 @@ dependencies = [
     "matplotlib",  # >= 3.8 for type stubs (requires python >= 3.9)
     "numpy",
     "seaborn",
+    # For Self (3.11), TypeAlias (3.10), possibly others
+    # v4.7.0 exports all names from typing, a welcome convenience
+    "typing_extensions >= 4.7",
 ]
 [project.optional-dependencies]
 dev = [

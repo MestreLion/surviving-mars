@@ -1,7 +1,6 @@
 # This file is part of project <https://github.com/MestreLion/surviving-mars>
 # Copyright (C) 2024 Rodrigo Silva (MestreLion) <linux@rodrigosilva.com>
 # License: GPLv3 or later, at your choice. See <http://www.gnu.org/licenses/gpl>
-
 """
 Functions to find best tower placement to maximize scan boost
 """
@@ -14,6 +13,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.optimize as sco
 
+from . import drawing as d
+from . import gamedata as g
 from . import main as m
 from . import util as u
 
@@ -23,20 +24,20 @@ from . import util as u
 NUM_TOWERS = int(sys.argv[1]) if len(sys.argv) >= 2 else 9
 SIDE = 3
 MARGINS = {
-    1: np.divide(m.MAP_SIZE, 2),
+    1: np.divide(g.MAP_SIZE, 2),
     2: (100, 100),
     3: (80, 80),
 }
 if not NUM_TOWERS:
     NUM_TOWERS = SIDE**2
 SHAPE_TOWER = (NUM_TOWERS, 2)
-BOUNDS = [(0, dim) for dim in m.MAP_SIZE]
+BOUNDS = [(0, dim) for dim in g.MAP_SIZE]
 u.init_window()
 plt.xlim(BOUNDS[0])
 plt.ylim(BOUNDS[1])
 plt.gca().set_aspect("equal")
-plt.xticks(np.linspace(*BOUNDS[0], num=m.SECTOR_GRID[0] + 1))
-plt.yticks(np.linspace(*BOUNDS[1], num=m.SECTOR_GRID[1] + 1))
+plt.xticks(np.linspace(*BOUNDS[0], num=g.SECTOR_GRID[0] + 1))
+plt.yticks(np.linspace(*BOUNDS[1], num=g.SECTOR_GRID[1] + 1))
 
 
 def count_calls(func):
@@ -50,8 +51,8 @@ def count_calls(func):
 
 
 @count_calls
-def mean_boost(flat: np.ndarray):
-    result = m.MapSector.map_scan_boost(flat.reshape(SHAPE_TOWER))
+def mean_boost(flat: np.ndarray) -> float:
+    result = g.MapSector.map_scan_boost(flat.reshape(SHAPE_TOWER))
     return -result.mean()
 
 
@@ -87,12 +88,6 @@ def save_result(result: sco.OptimizeResult):
     return path, solution, mean
 
 
-def draw_towers(towers, size=20, color="red", marker="*", label="Tower", mean=0.0):
-    return plt.scatter(
-        *zip(*towers), marker=marker, s=size**2, c=color, label=f"{mean:6.2f}: {label}"
-    )
-
-
 def measure(func, /, *args, **kwargs):
     # TODO: Make this a true decorator and apply to dual_annealing, minimize, etc
     start = time.time()
@@ -125,15 +120,17 @@ def main():
         (m.inner_grid(SIDE), "Inner", "blue"),
         (m.margin_grid(SIDE, MARGINS[SIDE]), "Margin", "red"),
     ):
-        mean = m.MapSector.map_scan_boost(towers).mean()
-        draw_towers(towers, label=label, color=color, mean=mean)
+        mean = g.MapSector.map_scan_boost(towers).mean()
+        d.draw_towers(towers, label=label, color=color, val=mean)
         print(f"{towers}, {mean:6.2f} {label}, {len(towers)} towers")
+
     bounds = BOUNDS * NUM_TOWERS
     optimizer_func = dual_annealing
     optimizer_kwargs = dict(func=mean_boost, bounds=bounds, maxiter=maxiter)
+
     _, towers, value, _ = measure(optimizer_func, **optimizer_kwargs)
-    if isinstance(towers, np.ndarray):
-        draw_towers(towers, color="green", marker="o", size=10, label="Best", mean=value)
+    if len(towers):
+        d.draw_towers(towers, color="green", marker="o", size=10, label="Best", val=value)
         plt.legend()
         u.show_window()
 
